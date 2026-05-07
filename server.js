@@ -6,7 +6,7 @@ const rateLimit = require('express-rate-limit');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
-
+app.use(express.static('public'));
 // ══════════════════════════════════════════
 // 1. БЕЗОПАСНОСТЬ — helmet
 // Автоматически защищает от XSS и других атак
