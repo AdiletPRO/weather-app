@@ -194,3 +194,296 @@ body {
   opacity: 0.8;
   padding: 60px 20px;
 }
+#weather-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* Весь контент поверх анимации */
+.header, .main, #history-block {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── ДОЖДЬ ── */
+.rain-drop {
+  position: absolute;
+  width: 2px;
+  background: linear-gradient(transparent, rgba(174,214,241,0.8));
+  border-radius: 2px;
+  animation: fall-rain linear infinite;
+}
+
+@keyframes fall-rain {
+  0%   { transform: translateY(-100px) rotate(15deg); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(110vh) rotate(15deg); opacity: 0; }
+}
+
+/* ── СНЕГ ── */
+.snow-flake {
+  position: absolute;
+  color: white;
+  font-size: 16px;
+  animation: fall-snow linear infinite;
+  opacity: 0.8;
+}
+
+@keyframes fall-snow {
+  0%   { transform: translateY(-50px) translateX(0) rotate(0deg); opacity: 0; }
+  10%  { opacity: 0.8; }
+  90%  { opacity: 0.8; }
+  100% { transform: translateY(110vh) translateX(60px) rotate(360deg); opacity: 0; }
+}
+
+/* ── ОБЛАКА ── */
+.cloud {
+  position: absolute;
+  font-size: 60px;
+  opacity: 0.15;
+  animation: drift linear infinite;
+  white-space: nowrap;
+}
+
+@keyframes drift {
+  0%   { transform: translateX(-200px); opacity: 0; }
+  5%   { opacity: 0.15; }
+  95%  { opacity: 0.15; }
+  100% { transform: translateX(110vw); opacity: 0; }
+}
+
+/* ── СОЛНЦЕ (лучи) ── */
+.sun-ray {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  width: 3px;
+  height: 300px;
+  background: linear-gradient(transparent, rgba(255,220,100,0.15), transparent);
+  transform-origin: bottom center;
+  animation: rotate-ray linear infinite;
+}
+
+@keyframes rotate-ray {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ── ГРОЗА (молния) ── */
+.lightning {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(255,255,255,0);
+  animation: flash ease-in-out infinite;
+}
+
+@keyframes flash {
+  0%,89%,91%,95%,97%,100% { background: rgba(255,255,255,0); }
+  90%,96% { background: rgba(255,255,255,0.06); }
+}
+
+/* ── ТУМАН ── */
+.fog-layer {
+  position: absolute;
+  width: 200%;
+  height: 120px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(200,200,200,0.12),
+    rgba(200,200,200,0.18),
+    rgba(200,200,200,0.12),
+    transparent
+  );
+  border-radius: 50%;
+  animation: fog-drift linear infinite;
+}
+
+@keyframes fog-drift {
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
+}
+
+/* ── ЗВЁЗДЫ (ночь) ── */
+.star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%,100% { opacity: 0.2; transform: scale(1); }
+  50%     { opacity: 1;   transform: scale(1.4); }
+}
+body {
+  position: relative;
+  overflow-x: hidden;
+}
+
+#weather-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.header, .main, #history {
+  position: relative;
+  z-index: 1;
+}
+
+#weather-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 55%);
+  opacity: .35;
+}
+
+.scene-sun {
+  position: absolute;
+  top: 8%;
+  right: 10%;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,230,140,0.95) 0%, rgba(255,200,70,0.75) 40%, rgba(255,200,70,0) 70%);
+  filter: blur(1px);
+  animation: sunPulse 6s ease-in-out infinite;
+}
+
+.sun-ray {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 100vh;
+  transform-origin: top center;
+  background: linear-gradient(to bottom, rgba(255,230,140,0.25), transparent);
+  opacity: .12;
+  animation: raySpin 18s linear infinite;
+}
+
+.rain-drop {
+  position: absolute;
+  width: 2px;
+  background: linear-gradient(to bottom, rgba(190,220,255,0), rgba(190,220,255,0.95));
+  border-radius: 2px;
+  animation: fallRain linear infinite;
+}
+
+.snow-flake {
+  position: absolute;
+  user-select: none;
+  animation: fallSnow linear infinite;
+}
+
+.cloud {
+  position: absolute;
+  white-space: nowrap;
+  opacity: .14;
+  animation: cloudMove linear infinite;
+  filter: blur(1px);
+}
+
+.fog-layer {
+  position: absolute;
+  width: 220%;
+  height: 120px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(220,220,220,0.12), rgba(220,220,220,0.18), rgba(220,220,220,0.12), transparent);
+  filter: blur(6px);
+  animation: fogMove linear infinite;
+}
+
+.star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.9);
+  animation: twinkle ease-in-out infinite;
+}
+
+.lightning {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0);
+  animation: flash ease-in-out infinite;
+}
+
+@keyframes fallRain {
+  0% { transform: translateY(-120px) translateX(0); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateY(110vh) translateX(10px); opacity: 0; }
+}
+
+@keyframes fallSnow {
+  0% { transform: translateY(-120px) translateX(0) rotate(0deg); opacity: 0; }
+  10% { opacity: .9; }
+  100% { transform: translateY(110vh) translateX(60px) rotate(360deg); opacity: 0; }
+}
+
+@keyframes cloudMove {
+  0% { transform: translateX(-30vw); }
+  100% { transform: translateX(130vw); }
+}
+
+@keyframes fogMove {
+  0% { transform: translateX(-35%); }
+  100% { transform: translateX(0%); }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: .25; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.6); }
+}
+
+@keyframes flash {
+  0%, 88%, 92%, 100% { background: rgba(255,255,255,0); }
+  90%, 91% { background: rgba(255,255,255,0.12); }
+}
+
+@keyframes raySpin {
+  from { transform: translateX(-50%) rotate(0deg); }
+  to { transform: translateX(-50%) rotate(360deg); }
+}
+
+@keyframes sunPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@media (max-width: 768px) {
+  .scene-sun {
+    width: 84px;
+    height: 84px;
+    right: 6%;
+    top: 10%;
+  }
+
+  .weather-left .temp {
+    font-size: 58px;
+  }
+
+  .weather-right {
+    font-size: 68px;
+  }
+
+  .forecast-row {
+    gap: 8px;
+  }
+
+  .forecast-bar {
+    min-width: 40px;
+  }
+}
