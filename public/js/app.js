@@ -227,6 +227,7 @@ async function getWeather(lat, lon, cityName) {
     const daily = data.daily;
 lastWeatherCode = cur.weathercode;
 document.body.style.background = getBg(cur.weathercode);
+setWeatherEffect(cur.weathercode);
 setWeatherScene(cur.weathercode);
     // Меняем фон страницы
     document.body.style.background = getBg(cur.weathercode);
@@ -445,3 +446,215 @@ async function clearHistory() {
   await fetch('/api/history', { method: 'DELETE' });
   loadHistory();
 }
+const canvas = document.getElementById('weather-bg');
+const ctx = canvas.getContext('2d');
+
+let W,H;
+let particles = [];
+let weatherType = 'clear';
+
+function resizeCanvas(){
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resizeCanvas();
+
+window.addEventListener('resize', resizeCanvas);
+
+function setWeatherEffect(code){
+
+  if(code === 0){
+    weatherType = 'clear';
+  }
+  else if(code <= 3){
+    weatherType = 'clouds';
+  }
+  else if(code <= 48){
+    weatherType = 'fog';
+  }
+  else if(code <= 65 || code <= 82){
+    weatherType = 'rain';
+  }
+  else if(code <= 75){
+    weatherType = 'snow';
+  }
+  else{
+    weatherType = 'storm';
+  }
+
+  generateParticles();
+}
+
+function generateParticles(){
+
+  particles = [];
+
+  if(weatherType === 'rain'){
+    for(let i=0;i<160;i++){
+      particles.push({
+        x:Math.random()*W,
+        y:Math.random()*H,
+        l:10+Math.random()*25,
+        s:8+Math.random()*10
+      });
+    }
+  }
+
+  if(weatherType === 'snow'){
+    for(let i=0;i<120;i++){
+      particles.push({
+        x:Math.random()*W,
+        y:Math.random()*H,
+        r:1+Math.random()*4,
+        s:0.5+Math.random()*2
+      });
+    }
+  }
+
+  if(weatherType === 'clouds'){
+    for(let i=0;i<20;i++){
+      particles.push({
+        x:Math.random()*W,
+        y:Math.random()*H*0.5,
+        r:80+Math.random()*120,
+        s:0.1+Math.random()*0.3
+      });
+    }
+  }
+
+  if(weatherType === 'fog'){
+    for(let i=0;i<12;i++){
+      particles.push({
+        x:Math.random()*W,
+        y:Math.random()*H,
+        r:200+Math.random()*300,
+        s:0.2+Math.random()*0.4
+      });
+    }
+  }
+}
+
+function animate(){
+
+  ctx.clearRect(0,0,W,H);
+
+  if(weatherType === 'clear'){
+
+    const g = ctx.createRadialGradient(
+      W*0.8,H*0.2,50,
+      W*0.8,H*0.2,300
+    );
+
+    g.addColorStop(0,'rgba(255,220,120,0.35)');
+    g.addColorStop(1,'rgba(255,220,120,0)');
+
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  if(weatherType === 'rain'){
+
+    ctx.strokeStyle='rgba(180,220,255,0.5)';
+    ctx.lineWidth=1.2;
+
+    particles.forEach(p=>{
+
+      ctx.beginPath();
+      ctx.moveTo(p.x,p.y);
+      ctx.lineTo(p.x-2,p.y+p.l);
+      ctx.stroke();
+
+      p.y += p.s;
+
+      if(p.y>H){
+        p.y=-20;
+        p.x=Math.random()*W;
+      }
+    });
+  }
+
+  if(weatherType === 'snow'){
+
+    ctx.fillStyle='rgba(255,255,255,0.8)';
+
+    particles.forEach(p=>{
+
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fill();
+
+      p.y += p.s;
+      p.x += Math.sin(p.y*0.01);
+
+      if(p.y>H){
+        p.y=-10;
+        p.x=Math.random()*W;
+      }
+    });
+  }
+
+  if(weatherType === 'clouds'){
+
+    particles.forEach(p=>{
+
+      const g = ctx.createRadialGradient(
+        p.x,p.y,10,
+        p.x,p.y,p.r
+      );
+
+      g.addColorStop(0,'rgba(255,255,255,0.08)');
+      g.addColorStop(1,'rgba(255,255,255,0)');
+
+      ctx.fillStyle = g;
+
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fill();
+
+      p.x += p.s;
+
+      if(p.x-p.r>W){
+        p.x=-p.r;
+      }
+    });
+  }
+
+  if(weatherType === 'fog'){
+
+    particles.forEach(p=>{
+
+      const g = ctx.createRadialGradient(
+        p.x,p.y,20,
+        p.x,p.y,p.r
+      );
+
+      g.addColorStop(0,'rgba(255,255,255,0.06)');
+      g.addColorStop(1,'rgba(255,255,255,0)');
+
+      ctx.fillStyle = g;
+
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fill();
+
+      p.x += p.s;
+
+      if(p.x-p.r>W){
+        p.x=-p.r;
+      }
+    });
+  }
+
+  if(weatherType === 'storm'){
+
+    if(Math.random()<0.01){
+
+      ctx.fillStyle='rgba(255,255,255,0.08)';
+      ctx.fillRect(0,0,W,H);
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
+animate();
