@@ -658,3 +658,89 @@ function animate(){
 }
 
 animate();
+const url = `https://api.open-meteo.com/v1/forecast`
+  + `?latitude=${lat}&longitude=${lon}`
+  + `&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m,relativehumidity_2m,precipitation,uv_index,cloud_cover,pressure_msl`
+  + `&hourly=temperature_2m,precipitation_probability,windspeed_10m`
+  + `&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset`
+  + `&timezone=auto&forecast_days=7`;
+  renderExtraInfo(cur);
+renderMap(lat, lon, cityName);
+renderChart(data.hourly);
+let mapInstance = null;
+let chartInstance = null;
+
+function renderExtraInfo(cur){
+  const extraInfo = document.getElementById('extraInfo');
+  extraInfo.innerHTML = `
+    <h3>Дополнительно</h3>
+    <div class="stats">
+      <div class="stat-card"><div class="stat-val">${Math.round(cur.apparent_temperature)}°C</div><div class="stat-name">Ощущается</div></div>
+      <div class="stat-card"><div class="stat-val">${cur.relativehumidity_2m}%</div><div class="stat-name">Влажность</div></div>
+      <div class="stat-card"><div class="stat-val">${Math.round(cur.windspeed_10m)} км/ч</div><div class="stat-name">Ветер</div></div>
+      <div class="stat-card"><div class="stat-val">${Math.round(cur.pressure_msl)} гПа</div><div class="stat-name">Давление</div></div>
+      <div class="stat-card"><div class="stat-val">${cur.cloud_cover}%</div><div class="stat-name">Облачность</div></div>
+      <div class="stat-card"><div class="stat-val">${cur.uv_index ?? '—'}</div><div class="stat-name">UV индекс</div></div>
+    </div>
+  `;
+}
+
+function renderMap(lat, lon, cityName){
+  if (mapInstance) {
+    mapInstance.remove();
+  }
+
+  mapInstance = L.map('map').setView([lat, lon], 10);
+
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(mapInstance);
+
+  L.marker([lat, lon]).addTo(mapInstance)
+    .bindPopup(cityName)
+    .openPopup();
+}
+
+function renderChart(hourly){
+  const ctx = document.getElementById('tempChart');
+
+  if (chartInstance) {
+    chartInstance.destroy();
+  }
+
+  const labels = hourly.time.slice(0, 24).map(t => t.slice(11, 16));
+  const temps = hourly.temperature_2m.slice(0, 24);
+  const rain = hourly.precipitation_probability?.slice(0, 24) || [];
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Температура °C',
+          data: temps,
+          tension: 0.35,
+          fill: false
+        },
+        {
+          label: 'Осадки %',
+          data: rain,
+          tension: 0.35,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top' }
+      },
+      scales: {
+        y: { beginAtZero: false }
+      }
+    }
+  });
+}
