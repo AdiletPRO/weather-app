@@ -30,15 +30,43 @@ function writeDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
-// ── API МАРШРУТЫ ──
+// ══════════════════════════════════════════
+// GET /api/weather — прокси к Open-Meteo
+// app.js делает fetch('/api/weather?lat=...&lon=...')
+// ══════════════════════════════════════════
+app.get('/api/weather', async (req, res) => {
+  try {
+    const { lat, lon } = req.query;
 
-// GET /api/history
+    if (!lat || !lon) {
+      return res.status(400).json({ error: 'Нужны lat и lon' });
+    }
+
+    const url = `https://api.open-meteo.com/v1/forecast`
+      + `?latitude=${lat}&longitude=${lon}`
+      + `&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m,`
+      + `winddirection_10m,windgusts_10m,relativehumidity_2m,precipitation,`
+      + `rain,showers,snowfall,uv_index,cloud_cover,pressure_msl,visibility`
+      + `&hourly=temperature_2m,precipitation_probability,windspeed_10m,precipitation`
+      + `&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset`
+      + `&timezone=auto&forecast_days=7`;
+
+    const response = await fetch(url);
+    const data     = await response.json();
+
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Weather API failed' });
+  }
+});
+
+// ── ИСТОРИЯ ──
 app.get('/api/history', (req, res) => {
   const db = readDB();
   res.json(db.searches.slice(-10).reverse());
 });
 
-// POST /api/history
 app.post('/api/history', (req, res) => {
   const { city, lat, lon } = req.body;
   if (!city) return res.status(400).json({ error: 'Нужно название города' });
@@ -51,7 +79,6 @@ app.post('/api/history', (req, res) => {
   res.json({ success: true });
 });
 
-// DELETE /api/history
 app.delete('/api/history', (req, res) => {
   writeDB({ searches: [] });
   res.json({ success: true });
