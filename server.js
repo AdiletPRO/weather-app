@@ -6,37 +6,17 @@ const rateLimit = require('express-rate-limit');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
-app.use(express.static('public'));
-// ══════════════════════════════════════════
-// 1. БЕЗОПАСНОСТЬ — helmet
-// Автоматически защищает от XSS и других атак
-// ══════════════════════════════════════════
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
-}));
 
-// ══════════════════════════════════════════
-// 2. RATE LIMITING — защита от спама
-// Максимум 100 запросов за 15 минут
-// ══════════════════════════════════════════
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { error: 'Слишком много запросов. Подожди 15 минут.' }
-});
-app.use('/api/', limiter);
-
-// ══════════════════════════════════════════
-// 3. MIDDLEWARE
-// ══════════════════════════════════════════
+// ── БЕЗОПАСНОСТЬ ──
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ══════════════════════════════════════════
-// 4. БАЗА ДАННЫХ — JSON файл
-// Хранит историю поиска городов
-// ══════════════════════════════════════════
+// ── RATE LIMIT ──
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
+app.use('/api/', limiter);
+
+// ── БАЗА ДАННЫХ ──
 const DB_FILE = path.join(__dirname, 'db.json');
 
 function readDB() {
@@ -50,65 +30,39 @@ function writeDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
-// ══════════════════════════════════════════
-// 5. API МАРШРУТЫ
-// ══════════════════════════════════════════
+// ── API МАРШРУТЫ ──
 
-// GET /api/history — получить историю поиска
+// GET /api/history
 app.get('/api/history', (req, res) => {
   const db = readDB();
-  // Возвращаем последние 10 городов
   res.json(db.searches.slice(-10).reverse());
 });
 
-// POST /api/history — сохранить город в историю
+// POST /api/history
 app.post('/api/history', (req, res) => {
   const { city, lat, lon } = req.body;
-
-  if (!city) {
-    return res.status(400).json({ error: 'Нужно название города' });
-  }
+  if (!city) return res.status(400).json({ error: 'Нужно название города' });
 
   const db = readDB();
-
-  // Убираем дубликат если такой город уже есть
   db.searches = db.searches.filter(s => s.city !== city);
-
-  // Добавляем новый поиск
-  db.searches.push({
-    city,
-    lat,
-    lon,
-    date: new Date().toISOString()
-  });
-
-  // Храним максимум 20 городов
-  if (db.searches.length > 20) {
-    db.searches = db.searches.slice(-20);
-  }
-
+  db.searches.push({ city, lat, lon, date: new Date().toISOString() });
+  if (db.searches.length > 20) db.searches = db.searches.slice(-20);
   writeDB(db);
   res.json({ success: true });
 });
 
-// DELETE /api/history — очистить историю
+// DELETE /api/history
 app.delete('/api/history', (req, res) => {
   writeDB({ searches: [] });
   res.json({ success: true });
 });
 
-// ══════════════════════════════════════════
-// 6. ОТДАЁМ ФРОНТЕНД
-// ══════════════════════════════════════════
+// ── ФРОНТЕНД ──
 app.get('/{*splat}', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ══════════════════════════════════════════
-// 7. ЗАПУСК
-// ══════════════════════════════════════════
+// ── ЗАПУСК ──
 app.listen(PORT, () => {
-  console.log(`✅ Сервер запущен: http://localhost:${PORT}`);
-  console.log(`📁 База данных: db.json`);
-  console.log(`🔒 Безопасность: helmet + rate limit`);
+  console.log(`✅ Сервер: http://localhost:${PORT}`);
 });
