@@ -212,7 +212,12 @@ function formatDate(iso) {
 async function getWeather(lat, lon, cityName) {
   // Показываем загрузку
   main.innerHTML = '<p class="msg">⏳ Загрузка...</p>';
-
+const url = `https://api.open-meteo.com/v1/forecast`
+  + `?latitude=${lat}&longitude=${lon}`
+  + `&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m,relativehumidity_2m,precipitation,uv_index,cloud_cover,pressure_msl`
+  + `&hourly=temperature_2m,precipitation_probability,windspeed_10m`
+  + `&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset`
+  + `&timezone=auto&forecast_days=7`;
   try {
     const url = `https://api.open-meteo.com/v1/forecast`
       + `?latitude=${lat}&longitude=${lon}`
@@ -225,6 +230,9 @@ async function getWeather(lat, lon, cityName) {
 
     const cur   = data.current;
     const daily = data.daily;
+    renderExtraInfo(cur);
+renderMap(lat, lon, cityName);
+renderChart(data.hourly);
 lastWeatherCode = cur.weathercode;
 document.body.style.background = getBg(cur.weathercode);
 setWeatherEffect(cur.weathercode);
@@ -658,12 +666,7 @@ function animate(){
 }
 
 animate();
-const url = `https://api.open-meteo.com/v1/forecast`
-  + `?latitude=${lat}&longitude=${lon}`
-  + `&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m,relativehumidity_2m,precipitation,uv_index,cloud_cover,pressure_msl`
-  + `&hourly=temperature_2m,precipitation_probability,windspeed_10m`
-  + `&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset`
-  + `&timezone=auto&forecast_days=7`;
+
   renderExtraInfo(cur);
 renderMap(lat, lon, cityName);
 renderChart(data.hourly);
