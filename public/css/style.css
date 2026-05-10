@@ -1,229 +1,264 @@
-/* ─────────────────────────────
-   БАЗОВЫЕ СТИЛИ
-───────────────────────────── */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   min-height: 100vh;
-  background: linear-gradient(135deg, #1a6b9a 0%, #2196f3 40%, #87ceeb 100%);
+  background: linear-gradient(160deg, #0d1b2a 0%, #1b3a5c 50%, #1e5799 100%);
   color: white;
-  transition: background 1s ease;
   overflow-x: hidden;
+  transition: background 1.5s ease;
 }
 
-/* ─────────────────────────────
-   CANVAS АНИМАЦИЯ ФОНА
-───────────────────────────── */
+/* CANVAS */
 #weather-bg {
   position: fixed;
-  top: 0; left: 0;
+  inset: 0;
   width: 100%; height: 100%;
   pointer-events: none;
   z-index: 0;
 }
 
-.header, .main, #history {
+/* HEADER */
+.app-header {
   position: relative;
-  z-index: 1;
-}
-
-/* ─────────────────────────────
-   ШАПКА
-───────────────────────────── */
-.header {
-  padding: 20px;
+  z-index: 10;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
+  padding: 16px 24px;
+  background: rgba(0,0,0,0.25);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
 .logo {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
 }
 
-/* ─────────────────────────────
-   ПОИСК
-───────────────────────────── */
-.search-box {
+.search-wrap {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
-.search-box input {
-  padding: 10px 16px;
-  border-radius: 30px;
-  border: 1px solid rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.15);
+.search-wrap input {
+  padding: 9px 16px;
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.1);
   color: white;
   font-size: 14px;
   outline: none;
-  width: 220px;
+  width: 240px;
+  transition: border 0.2s;
 }
 
-.search-box input::placeholder {
-  color: rgba(255,255,255,0.6);
-}
+.search-wrap input:focus { border-color: rgba(255,255,255,0.4); }
+.search-wrap input::placeholder { color: rgba(255,255,255,0.45); }
 
-.search-box button {
-  padding: 10px 18px;
-  border-radius: 30px;
-  border: 1px solid rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.15);
+.search-wrap button {
+  padding: 9px 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.12);
   color: white;
   font-size: 14px;
   cursor: pointer;
   transition: background 0.2s;
+  white-space: nowrap;
 }
 
-.search-box button:hover {
-  background: rgba(255,255,255,0.25);
-}
+.search-wrap button:hover { background: rgba(255,255,255,0.22); }
 
-/* ─────────────────────────────
-   ОСНОВНОЙ КОНТЕНТ
-───────────────────────────── */
-.main {
-  padding: 20px;
-  max-width: 900px;
+/* MAIN */
+.app-main {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
   margin: 0 auto;
+  padding: 24px 20px 40px;
 }
 
-/* ─────────────────────────────
-   КАРТОЧКИ
-───────────────────────────── */
-.weather-card {
-  background: rgba(255,255,255,0.1);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.15);
+/* СТЕКЛЯННАЯ КАРТОЧКА */
+.glass {
+  background: rgba(255,255,255,0.07);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 20px;
   padding: 24px;
   margin-bottom: 16px;
+}
+
+/* ГЛАВНАЯ КАРТОЧКА ПОГОДЫ */
+.hero-card {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
   flex-wrap: wrap;
   gap: 16px;
+  padding: 32px;
 }
 
-.weather-left .city  { font-size: 26px; font-weight: 600; margin-bottom: 4px; }
-.weather-left .temp  { font-size: 76px; font-weight: 700; line-height: 1; margin: 8px 0; }
-.weather-left .desc  { font-size: 18px; opacity: 0.85; }
-.weather-left .feels { font-size: 14px; opacity: 0.6; margin-top: 4px; }
-.weather-right       { font-size: 90px; }
+.hero-city { font-size: 15px; opacity: 0.65; margin-bottom: 4px; }
+.hero-temp { font-size: 88px; font-weight: 700; line-height: 1; }
+.hero-desc { font-size: 20px; opacity: 0.85; margin-top: 6px; }
+.hero-feels { font-size: 14px; opacity: 0.55; margin-top: 4px; }
+.hero-minmax { font-size: 15px; opacity: 0.65; margin-top: 6px; }
+.hero-icon { font-size: 100px; line-height: 1; }
 
-/* ─────────────────────────────
-   МЕТРИКИ
-───────────────────────────── */
-.stats {
+/* СЕТКА МЕТРИК */
+.metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 10px;
-  width: 100%;
 }
 
-.stat-card {
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.12);
+.metric {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.09);
   border-radius: 14px;
-  padding: 14px;
+  padding: 16px 12px;
   text-align: center;
 }
 
-.stat-icon { font-size: 22px; margin-bottom: 4px; }
-.stat-val  { font-size: 16px; font-weight: 600; }
-.stat-name { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+.metric-icon { font-size: 22px; margin-bottom: 6px; }
+.metric-val  { font-size: 17px; font-weight: 600; }
+.metric-name { font-size: 11px; opacity: 0.5; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.4px; }
 
-/* ─────────────────────────────
-   ПРОГНОЗ 7 ДНЕЙ
-───────────────────────────── */
-.forecast {
-  background: rgba(255,255,255,0.1);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 20px;
-  padding: 20px;
-  margin-bottom: 16px;
-}
-
-.forecast h3 {
-  font-size: 13px;
-  opacity: 0.6;
-  letter-spacing: 0.5px;
-  margin-bottom: 14px;
+/* РАЗДЕЛ ЗАГОЛОВОК */
+.section-title {
+  font-size: 12px;
+  opacity: 0.5;
   text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 16px;
+  font-weight: 600;
 }
 
+/* ПОЧАСОВОЙ */
+.hourly-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+
+.hour-card {
+  min-width: 68px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 12px 8px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.hour-time { font-size: 12px; opacity: 0.55; margin-bottom: 6px; }
+.hour-icon { font-size: 22px; margin-bottom: 6px; }
+.hour-temp { font-size: 15px; font-weight: 600; }
+.hour-pop  { font-size: 11px; color: #64b5f6; margin-top: 4px; }
+
+/* 7 ДНЕЙ */
 .forecast-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
-.forecast-row:last-child { border-bottom: none; }
-.forecast-day  { width: 40px; font-size: 13px; opacity: 0.8; }
-.forecast-icon { font-size: 22px; width: 32px; text-align: center; }
-.forecast-desc { flex: 1; font-size: 12px; opacity: 0.6; }
-.forecast-min  { font-size: 13px; opacity: 0.6; width: 36px; text-align: right; }
-.forecast-bar  { flex: 2; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; position: relative; min-width: 60px; }
-.forecast-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #64b5f6, #ff7043); }
-.forecast-max  { font-size: 13px; width: 36px; }
+.forecast-row:last-child { border: none; }
+.fc-day  { width: 42px; font-size: 14px; font-weight: 500; }
+.fc-icon { font-size: 22px; width: 30px; text-align: center; }
+.fc-desc { flex: 1; font-size: 12px; opacity: 0.5; }
+.fc-min  { font-size: 13px; opacity: 0.5; width: 34px; text-align: right; }
+.fc-bar  { flex: 2; height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; min-width: 80px; }
+.fc-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #42a5f5, #ff7043); }
+.fc-max  { font-size: 13px; font-weight: 600; width: 34px; }
 
-/* ─────────────────────────────
-   КАРТА
-───────────────────────────── */
-.map-card, .chart-card {
-  display: block;
+/* ДВУХКОЛОНОЧНАЯ СЕТКА */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
-.map-card h3, .chart-card h3 {
-  font-size: 13px;
-  opacity: 0.6;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 10px;
+@media (max-width: 700px) {
+  .two-col { grid-template-columns: 1fr; }
+  .hero-temp { font-size: 64px; }
+  .hero-icon { font-size: 72px; }
 }
 
+/* КАРТА */
 #map {
   width: 100%;
-  height: 280px;
-  border-radius: 12px;
+  height: 320px;
+  border-radius: 14px;
   overflow: hidden;
 }
 
-/* ─────────────────────────────
-   ГРАФИК
-───────────────────────────── */
-.chart-card canvas {
-  width: 100% !important;
-  height: 200px !important;
-}
+/* ГРАФИК */
+.chart-wrap { height: 180px; position: relative; }
 
-/* ─────────────────────────────
-   СООБЩЕНИЕ
-───────────────────────────── */
+/* СООБЩЕНИЕ */
 .msg {
   text-align: center;
   font-size: 18px;
-  opacity: 0.8;
-  padding: 60px 20px;
+  opacity: 0.6;
+  padding: 80px 20px;
 }
 
-/* ─────────────────────────────
-   АДАПТИВНОСТЬ
-───────────────────────────── */
-@media (max-width: 600px) {
-  .weather-left .temp { font-size: 56px; }
-  .weather-right      { font-size: 64px; }
-  .search-box input   { width: 160px; }
-  .forecast-bar       { min-width: 40px; }
+/* ИСТОРИЯ */
+#history {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px 32px;
+}
+
+.history-inner {
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 18px 20px;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.history-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.history-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: white;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.history-btn:hover { background: rgba(255,255,255,0.18); }
+
+.clear-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.5);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
 }

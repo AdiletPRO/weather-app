@@ -4,47 +4,36 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WeatherApp</title>
-
-  <!-- Bootstrap -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
-
-  <!-- Leaflet (карта) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
-  <!-- Наши стили -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- АНИМАЦИЯ ФОНА -->
   <canvas id="weather-bg"></canvas>
 
   <!-- ШАПКА -->
-  <div class="header">
-    <h1 class="logo">🌤️ WeatherApp</h1>
-    <div class="search-box">
-      <input type="text" id="cityInput" placeholder="Введи город...">
-      <button id="searchBtn">Найти</button>
-      <button id="geoBtn">📍</button>
+  <header class="app-header">
+    <div class="header-left">
+      <span class="logo">🌤️ WeatherApp</span>
     </div>
-  </div>
+    <div class="header-right">
+      <div class="search-wrap">
+        <input type="text" id="cityInput" placeholder="🔍 Поиск города...">
+        <button id="searchBtn">Найти</button>
+        <button id="geoBtn" title="Моё местоположение">📍</button>
+      </div>
+    </div>
+  </header>
 
-  <!-- ОСНОВНОЙ КОНТЕНТ -->
-  <div class="main">
+  <!-- КОНТЕНТ -->
+  <main class="app-main" id="appMain">
     <p class="msg">Введи город чтобы узнать погоду</p>
-  </div>
+  </main>
 
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Bootstrap JS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
-
-  <!-- Наш JS -->
   <script src="js/app.js"></script>
-
 </body>
 </html>

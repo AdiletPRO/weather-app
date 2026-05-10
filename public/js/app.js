@@ -1,638 +1,413 @@
-// ─────────────────────────────────────────
-// WeatherApp app.js
-// Чистая версия: погода, карта, график, история, Canvas-анимация
-// Ожидает серверный маршрут /api/weather
-// ─────────────────────────────────────────
+// ═══════════════════════════════════════
+// WeatherApp — с радаром RainViewer
+// ═══════════════════════════════════════
 
-// ─────────────────────────────────────────
-// 1. ЭЛЕМЕНТЫ СТРАНИЦЫ
-// ─────────────────────────────────────────
 const cityInput = document.getElementById('cityInput');
 const searchBtn = document.getElementById('searchBtn');
-const geoBtn = document.getElementById('geoBtn');
-const main = document.querySelector('.main');
+const geoBtn    = document.getElementById('geoBtn');
+const appMain   = document.getElementById('appMain');
 
-// ─────────────────────────────────────────
-// 2. ИКОНКИ И ОПИСАНИЯ ПОГОДЫ
-// ─────────────────────────────────────────
-function getIcon(code) {
-  if (code === 0) return '☀️';
-  if (code <= 2) return '⛅';
-  if (code === 3) return '☁️';
-  if (code <= 48) return '🌫️';
-  if (code <= 55) return '🌦️';
-  if (code <= 65) return '🌧️';
-  if (code <= 75) return '❄️';
-  if (code <= 82) return '🌨️';
-  return '⛈️';
-}
+const DAYS   = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+const MONTHS = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 
-function getDesc(code) {
-  if (code === 0) return 'Ясно';
-  if (code <= 2) return 'Переменная облачность';
-  if (code === 3) return 'Пасмурно';
-  if (code <= 48) return 'Туман';
-  if (code <= 55) return 'Морось';
-  if (code <= 65) return 'Дождь';
-  if (code <= 75) return 'Снег';
-  if (code <= 82) return 'Ливень';
-  return 'Гроза';
-}
-
-function getBg(code) {
-  const h = new Date().getHours();
-  const night = h < 6 || h >= 20;
-
-  if (night) return 'linear-gradient(135deg,#0f0c29,#1a1a2e,#16213e)';
-  if (code === 0) return 'linear-gradient(135deg,#1a6b9a,#2196f3,#87ceeb)';
-  if (code <= 3) return 'linear-gradient(135deg,#3d5a6b,#607d8b,#90a4ae)';
-  if (code <= 65) return 'linear-gradient(135deg,#2c3e50,#3d5a6b,#607d8b)';
-  return 'linear-gradient(135deg,#1a237e,#283593,#3949ab)';
-}
-
-const DAYS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-
-function formatDate(iso) {
-  const d = new Date(iso);
-  return DAYS[d.getDay()];
-}
-
-function degToCompass(deg) {
-  const dirs = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
-  return dirs[Math.round(deg / 45) % 8];
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-// ─────────────────────────────────────────
-// 3. КАРТА И ГРАФИК
-// ─────────────────────────────────────────
-let mapInstance = null;
+let mapInstance   = null;
+let radarLayer    = null;
 let chartInstance = null;
 
-function renderMap(lat, lon, cityName) {
+// ── ИКОНКИ / ОПИСАНИЯ ──
+function icon(c) {
+  if (c===0) return '☀️'; if (c<=2) return '⛅'; if (c===3) return '☁️';
+  if (c<=48) return '🌫️'; if (c<=55) return '🌦️'; if (c<=65) return '🌧️';
+  if (c<=75) return '❄️'; if (c<=82) return '🌨️'; return '⛈️';
+}
+function desc(c) {
+  if (c===0) return 'Ясно'; if (c<=2) return 'Переменная облачность';
+  if (c===3) return 'Пасмурно'; if (c<=48) return 'Туман';
+  if (c<=55) return 'Морось'; if (c<=65) return 'Дождь';
+  if (c<=75) return 'Снег'; if (c<=82) return 'Ливень'; return 'Гроза';
+}
+
+// ── ФОН ──
+function getBg(c) {
+  const n = new Date().getHours(); const night = n<6||n>=20;
+  if (night) return 'linear-gradient(160deg,#060c1a,#0d1b2e,#0a2444)';
+  if (c===0)  return 'linear-gradient(160deg,#0d4f8c,#1976d2,#42a5f5)';
+  if (c<=3)   return 'linear-gradient(160deg,#1c2e3f,#2e4a5e,#546e7a)';
+  if (c<=65)  return 'linear-gradient(160deg,#1a2836,#243b4a,#2e5266)';
+  return 'linear-gradient(160deg,#0d1b3e,#1a2f6e,#1e3a8a)';
+}
+
+function safe(s) {
+  return String(s).replace(/[<>"'&]/g, c =>
+    ({'<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','&':'&amp;'}[c]));
+}
+
+// ═══════════════════════════════════════
+// CANVAS АНИМАЦИЯ ФОНА
+// ═══════════════════════════════════════
+const cvs = (() => {
+  let el = document.getElementById('weather-bg');
+  if (!el) { el = document.createElement('canvas'); el.id='weather-bg'; document.body.prepend(el); }
+  return el;
+})();
+const cx = cvs.getContext('2d');
+let W=0, H=0, wType='clear', parts=[], strs=[], lastCode=null;
+
+function resize() {
+  W = cvs.width  = window.innerWidth;
+  H = cvs.height = window.innerHeight;
+  genParts();
+}
+
+function setEffect(code) {
+  lastCode = code;
+  if (code===0) wType='clear';
+  else if (code<=3) wType='clouds';
+  else if (code<=48) wType='fog';
+  else if (code<=67||code>=80&&code<=82) wType='rain';
+  else if (code>=71&&code<=77) wType='snow';
+  else if (code>=95) wType='storm';
+  else wType='clouds';
+  genParts();
+}
+
+function genParts() {
+  parts=[]; strs=[];
+  const mob = W<768;
+  if (wType==='rain') {
+    const n = mob?70:130;
+    for(let i=0;i<n;i++) parts.push({x:Math.random()*W,y:Math.random()*H,l:12+Math.random()*22,s:9+Math.random()*10});
+  }
+  if (wType==='snow') {
+    const n = mob?50:90;
+    for(let i=0;i<n;i++) parts.push({x:Math.random()*W,y:Math.random()*H,r:1.5+Math.random()*3.5,s:0.5+Math.random()*1.5,d:(Math.random()-.5)*.6});
+  }
+  if (wType==='clouds') {
+    for(let i=0;i<(mob?4:8);i++) parts.push({x:Math.random()*W,y:Math.random()*H*.4,r:90+Math.random()*140,s:.1+Math.random()*.2});
+  }
+  if (wType==='fog') {
+    for(let i=0;i<(mob?4:7);i++) parts.push({x:Math.random()*W,y:20+Math.random()*H*.8,r:200+Math.random()*300,s:.15+Math.random()*.2});
+  }
+  if (wType==='clear' && (new Date().getHours()<6||new Date().getHours()>=20)) {
+    for(let i=0;i<(mob?30:60);i++) strs.push({x:Math.random()*W,y:Math.random()*H*.6,r:.8+Math.random()*1.5,a:.2+Math.random()*.8,s:.006+Math.random()*.018});
+  }
+}
+
+function draw() {
+  cx.clearRect(0,0,W,H);
+
+  if (wType==='clear') {
+    const g=cx.createRadialGradient(W*.82,H*.15,30,W*.82,H*.15,320);
+    g.addColorStop(0,'rgba(255,220,110,.4)'); g.addColorStop(1,'rgba(255,220,110,0)');
+    cx.fillStyle=g; cx.fillRect(0,0,W,H);
+    strs.forEach(s=>{
+      cx.beginPath(); cx.fillStyle=`rgba(255,255,255,${s.a.toFixed(2)})`;
+      cx.arc(s.x,s.y,s.r,0,Math.PI*2); cx.fill();
+      s.a+=s.s*(Math.random()>.5?1:-1); s.a=Math.max(.1,Math.min(1,s.a));
+    });
+  }
+
+  if (wType==='rain') {
+    cx.strokeStyle='rgba(180,215,255,.5)'; cx.lineWidth=1.3;
+    parts.forEach(p=>{
+      cx.beginPath(); cx.moveTo(p.x,p.y); cx.lineTo(p.x-2,p.y+p.l); cx.stroke();
+      p.y+=p.s; p.x+=.3; if(p.y>H){p.y=-20;p.x=Math.random()*W;}
+    });
+  }
+
+  if (wType==='snow') {
+    cx.fillStyle='rgba(255,255,255,.85)';
+    parts.forEach(p=>{
+      cx.beginPath(); cx.arc(p.x,p.y,p.r,0,Math.PI*2); cx.fill();
+      p.y+=p.s; p.x+=Math.sin(p.y*.01)+p.d;
+      if(p.y>H){p.y=-10;p.x=Math.random()*W;}
+    });
+  }
+
+  if (wType==='clouds'||wType==='fog') {
+    parts.forEach(p=>{
+      const g=cx.createRadialGradient(p.x,p.y,10,p.x,p.y,p.r);
+      g.addColorStop(0,wType==='fog'?'rgba(255,255,255,.08)':'rgba(255,255,255,.07)');
+      g.addColorStop(1,'rgba(255,255,255,0)');
+      cx.fillStyle=g; cx.beginPath(); cx.arc(p.x,p.y,p.r,0,Math.PI*2); cx.fill();
+      p.x+=p.s; if(p.x-p.r>W) p.x=-p.r;
+    });
+  }
+
+  if (wType==='storm') {
+    if(Math.random()<.015){cx.fillStyle='rgba(255,255,255,.1)';cx.fillRect(0,0,W,H);}
+  }
+
+  requestAnimationFrame(draw);
+}
+resize();
+window.addEventListener('resize', resize);
+draw();
+
+// ═══════════════════════════════════════
+// РАДАР — RainViewer (бесплатно, без ключа)
+// ═══════════════════════════════════════
+async function initRadar(lat, lon) {
   const mapEl = document.getElementById('map');
   if (!mapEl || typeof L === 'undefined') return;
 
-  if (mapInstance) {
-    mapInstance.remove();
-    mapInstance = null;
-  }
+  if (mapInstance) { mapInstance.remove(); mapInstance=null; radarLayer=null; }
 
-  mapInstance = L.map('map', {
-    zoomControl: true,
-    scrollWheelZoom: false
-  }).setView([lat, lon], 10);
+  mapInstance = L.map('map', { zoomControl:true, scrollWheelZoom:false }).setView([lat, lon], 7);
 
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap'
+  // Базовая карта — тёмная тема
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; CartoDB',
+    subdomains: 'abcd',
+    maxZoom: 19
   }).addTo(mapInstance);
 
-  L.marker([lat, lon])
-    .addTo(mapInstance)
-    .bindPopup(escapeHtml(cityName))
-    .openPopup();
+  // Маркер города
+  L.circleMarker([lat, lon], {
+    radius: 7, fillColor: '#42a5f5', color: 'white',
+    weight: 2, opacity: 1, fillOpacity: 0.9
+  }).addTo(mapInstance);
 
-  setTimeout(() => {
-    if (mapInstance) mapInstance.invalidateSize();
-  }, 50);
-}
+  // Получаем данные радара от RainViewer
+  try {
+    const r = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    const d = await r.json();
 
-function renderChart(hourly) {
-  const canvas = document.getElementById('tempChart');
-  if (!canvas || typeof Chart === 'undefined') return;
+    const frames = d.radar?.past || [];
+    if (frames.length > 0) {
+      const latest = frames[frames.length - 1];
 
-  if (chartInstance) {
-    chartInstance.destroy();
-    chartInstance = null;
+      radarLayer = L.tileLayer(
+        `https://tilecache.rainviewer.com${latest.path}/256/{z}/{x}/{y}/2/1_1.png`,
+        { opacity: 0.6, attribution: 'RainViewer', zIndex: 10 }
+      ).addTo(mapInstance);
+
+      // Легенда
+      const legend = L.control({ position: 'bottomright' });
+      legend.onAdd = () => {
+        const div = L.DomUtil.create('div');
+        div.style.cssText = 'background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:8px;color:white;font-size:11px;';
+        div.innerHTML = '🌧️ Радар осадков<br><span style="opacity:0.6">RainViewer</span>';
+        return div;
+      };
+      legend.addTo(mapInstance);
+    }
+  } catch(e) {
+    console.log('Radar error:', e);
   }
 
-  const labels = (hourly.time || []).slice(0, 24).map(t => t.slice(11, 16));
-  const temps = (hourly.temperature_2m || []).slice(0, 24);
-  const rain = (hourly.precipitation_probability || []).slice(0, 24);
+  setTimeout(() => { if(mapInstance) mapInstance.invalidateSize(); }, 100);
+}
 
-  chartInstance = new Chart(canvas, {
+// ═══════════════════════════════════════
+// ГРАФИК ТЕМПЕРАТУРЫ
+// ═══════════════════════════════════════
+function renderChart(hourly) {
+  const el = document.getElementById('tempChart');
+  if (!el || typeof Chart === 'undefined') return;
+  if (chartInstance) { chartInstance.destroy(); chartInstance=null; }
+
+  const now = new Date();
+  const start = (hourly.time||[]).findIndex(t => new Date(t) >= now);
+  const labels = (hourly.time||[]).slice(start, start+24).map(t => t.slice(11,16));
+  const temps  = (hourly.temperature_2m||[]).slice(start, start+24);
+  const pops   = (hourly.precipitation_probability||[]).slice(start, start+24);
+
+  chartInstance = new Chart(el, {
     type: 'line',
     data: {
       labels,
       datasets: [
-        {
-          label: 'Температура °C',
-          data: temps,
-          tension: 0.35,
-          borderWidth: 2,
-          pointRadius: 2
-        },
-        {
-          label: 'Вероятность осадков %',
-          data: rain,
-          tension: 0.35,
-          borderWidth: 2,
-          pointRadius: 2
-        }
+        { label: '°C', data: temps, borderColor: '#64b5f6', backgroundColor: 'rgba(100,181,246,.1)', tension: .35, pointRadius: 2, borderWidth: 2, yAxisID: 'y' },
+        { label: 'Осадки %', data: pops, borderColor: '#80cbc4', backgroundColor: 'rgba(128,203,196,.08)', tension: .35, pointRadius: 2, borderWidth: 2, yAxisID: 'y1' }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { position: 'top' }
-      },
+      plugins: { legend: { labels: { color: 'rgba(255,255,255,.6)', font: { size: 11 } } } },
       scales: {
-        y: {
-          beginAtZero: false
-        }
+        x:  { ticks: { color: 'rgba(255,255,255,.4)', maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,.04)' } },
+        y:  { ticks: { color: 'rgba(255,255,255,.4)' }, grid: { color: 'rgba(255,255,255,.04)' }, position: 'left' },
+        y1: { ticks: { color: 'rgba(128,203,196,.5)' }, grid: { display: false }, position: 'right', min: 0, max: 100 }
       }
     }
   });
 }
 
-function renderExtraInfo(cur) {
-  const extraInfo = document.getElementById('extraInfo');
-  if (!extraInfo) return;
-
-  const windDir = cur.winddirection_10m ?? cur.wind_direction_10m ?? 0;
-  const windGusts = cur.windgusts_10m ?? cur.wind_gusts_10m ?? '—';
-  const pressure = cur.pressure_msl ?? cur.surface_pressure ?? '—';
-  const visibility = cur.visibility ?? '—';
-  const rain = cur.rain ?? 0;
-  const showers = cur.showers ?? 0;
-  const snowfall = cur.snowfall ?? 0;
-  const cloudCover = cur.cloud_cover ?? '—';
-
-  extraInfo.innerHTML = `
-    <h3>Дополнительно</h3>
-    <div class="stats">
-      <div class="stat-card"><div class="stat-val">${Math.round(cur.apparent_temperature)}°C</div><div class="stat-name">Ощущается</div></div>
-      <div class="stat-card"><div class="stat-val">${cur.relativehumidity_2m}%</div><div class="stat-name">Влажность</div></div>
-      <div class="stat-card"><div class="stat-val">${Math.round(cur.windspeed_10m)} км/ч</div><div class="stat-name">Ветер</div></div>
-      <div class="stat-card"><div class="stat-val">${Math.round(windDir)}° ${degToCompass(windDir)}</div><div class="stat-name">Направление</div></div>
-      <div class="stat-card"><div class="stat-val">${Math.round(windGusts)} км/ч</div><div class="stat-name">Порывы</div></div>
-      <div class="stat-card"><div class="stat-val">${Math.round(pressure)} гПа</div><div class="stat-name">Давление</div></div>
-      <div class="stat-card"><div class="stat-val">${cur.precipitation ?? 0} мм</div><div class="stat-name">Осадки</div></div>
-      <div class="stat-card"><div class="stat-val">${rain} мм</div><div class="stat-name">Дождь</div></div>
-      <div class="stat-card"><div class="stat-val">${showers} мм</div><div class="stat-name">Ливни</div></div>
-      <div class="stat-card"><div class="stat-val">${snowfall} см</div><div class="stat-name">Снег</div></div>
-      <div class="stat-card"><div class="stat-val">${cloudCover}%</div><div class="stat-name">Облачность</div></div>
-      <div class="stat-card"><div class="stat-val">${visibility} м</div><div class="stat-name">Видимость</div></div>
-    </div>
-  `;
-}
-
-// ─────────────────────────────────────────
-// 4. CANVAS АНИМАЦИЯ ФОНА
-// ─────────────────────────────────────────
-const canvas = (() => {
-  let el = document.getElementById('weather-bg');
-  if (!el) {
-    el = document.createElement('canvas');
-    el.id = 'weather-bg';
-    document.body.prepend(el);
-  }
-  return el;
-})();
-
-const ctx = canvas.getContext('2d');
-let W = 0;
-let H = 0;
-let weatherType = 'clear';
-let particles = [];
-let stars = [];
-let lastWeatherCode = null;
-
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-function resizeCanvas() {
-  W = canvas.width = window.innerWidth;
-  H = canvas.height = window.innerHeight;
-  generateParticles();
-}
-
-function isNight() {
-  const h = new Date().getHours();
-  return h < 6 || h >= 20;
-}
-
-function setWeatherEffect(code) {
-  lastWeatherCode = code;
-
-  if (code === 0) weatherType = 'clear';
-  else if (code >= 1 && code <= 3) weatherType = 'clouds';
-  else if (code >= 45 && code <= 48) weatherType = 'fog';
-  else if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) weatherType = 'rain';
-  else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) weatherType = 'snow';
-  else if (code >= 95) weatherType = 'storm';
-  else weatherType = 'clouds';
-
-  generateParticles();
-}
-
-function generateParticles() {
-  particles = [];
-  stars = [];
-
-  const mobile = window.innerWidth < 768;
-
-  if (weatherType === 'rain') {
-    const count = reducedMotion ? (mobile ? 30 : 45) : (mobile ? 60 : 110);
-    for (let i = 0; i < count; i++) {
-      particles.push({
-        x: Math.random() * W,
-        y: Math.random() * H,
-        l: 10 + Math.random() * 25,
-        s: 8 + Math.random() * 12
-      });
-    }
-  }
-
-  if (weatherType === 'snow') {
-    const count = reducedMotion ? (mobile ? 20 : 30) : (mobile ? 45 : 80);
-    for (let i = 0; i < count; i++) {
-      particles.push({
-        x: Math.random() * W,
-        y: Math.random() * H,
-        r: 1 + Math.random() * 4,
-        s: 0.4 + Math.random() * 1.8,
-        drift: (Math.random() - 0.5) * 0.8
-      });
-    }
-  }
-
-  if (weatherType === 'clouds') {
-    const count = mobile ? 4 : 7;
-    for (let i = 0; i < count; i++) {
-      particles.push({
-        x: Math.random() * W,
-        y: Math.random() * H * 0.45,
-        r: 70 + Math.random() * 130,
-        s: 0.08 + Math.random() * 0.25
-      });
-    }
-  }
-
-  if (weatherType === 'fog') {
-    const count = mobile ? 3 : 5;
-    for (let i = 0; i < count; i++) {
-      particles.push({
-        x: Math.random() * W,
-        y: Math.random() * H * 0.85,
-        r: 180 + Math.random() * 320,
-        s: 0.18 + Math.random() * 0.25
-      });
-    }
-  }
-
-  if (weatherType === 'clear' && isNight()) {
-    const count = mobile ? 24 : 50;
-    for (let i = 0; i < count; i++) {
-      stars.push({
-        x: Math.random() * W,
-        y: Math.random() * H * 0.55,
-        r: 0.8 + Math.random() * 1.6,
-        a: 0.2 + Math.random() * 0.8,
-        s: 0.005 + Math.random() * 0.02
-      });
-    }
-  }
-}
-
-function animate() {
-  ctx.clearRect(0, 0, W, H);
-
-  if (weatherType === 'clear') {
-    const g = ctx.createRadialGradient(W * 0.82, H * 0.18, 40, W * 0.82, H * 0.18, 340);
-    g.addColorStop(0, 'rgba(255,220,120,0.35)');
-    g.addColorStop(1, 'rgba(255,220,120,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-
-    if (isNight()) {
-      stars.forEach(star => {
-        ctx.beginPath();
-        ctx.fillStyle = `rgba(255,255,255,${star.a})`;
-        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
-        ctx.fill();
-        star.a += star.s * (Math.random() > 0.5 ? 1 : -1);
-        if (star.a < 0.1) star.a = 0.1;
-        if (star.a > 1) star.a = 1;
-      });
-    }
-  }
-
-  if (weatherType === 'rain') {
-    ctx.strokeStyle = 'rgba(180,220,255,0.55)';
-    ctx.lineWidth = 1.2;
-
-    particles.forEach(p => {
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(p.x - 2, p.y + p.l);
-      ctx.stroke();
-
-      p.y += p.s;
-      p.x += 0.2;
-
-      if (p.y > H) {
-        p.y = -20;
-        p.x = Math.random() * W;
-      }
-    });
-  }
-
-  if (weatherType === 'snow') {
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-
-    particles.forEach(p => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-
-      p.y += p.s;
-      p.x += Math.sin(p.y * 0.01) + (p.drift || 0);
-
-      if (p.y > H) {
-        p.y = -10;
-        p.x = Math.random() * W;
-      }
-    });
-  }
-
-  if (weatherType === 'clouds') {
-    particles.forEach(p => {
-      const g = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, p.r);
-      g.addColorStop(0, 'rgba(255,255,255,0.09)');
-      g.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-
-      p.x += p.s;
-      if (p.x - p.r > W) p.x = -p.r;
-    });
-  }
-
-  if (weatherType === 'fog') {
-    particles.forEach(p => {
-      const g = ctx.createRadialGradient(p.x, p.y, 20, p.x, p.y, p.r);
-      g.addColorStop(0, 'rgba(255,255,255,0.08)');
-      g.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-
-      p.x += p.s;
-      if (p.x - p.r > W) p.x = -p.r;
-    });
-  }
-
-  if (weatherType === 'storm') {
-    if (Math.random() < 0.012) {
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.fillRect(0, 0, W, H);
-    }
-  }
-
-  requestAnimationFrame(animate);
-}
-
-resizeCanvas();
-window.addEventListener('resize', () => {
-  resizeCanvas();
-  if (mapInstance) {
-    setTimeout(() => mapInstance.invalidateSize(), 0);
-  }
-  if (lastWeatherCode !== null) {
-    setWeatherEffect(lastWeatherCode);
-  }
-});
-
-animate();
-
-// ─────────────────────────────────────────
-// 5. ПРОГНОЗ И РЕНДЕР ПОГОДЫ
-// ─────────────────────────────────────────
+// ═══════════════════════════════════════
+// ГЛАВНАЯ ФУНКЦИЯ — ПОГОДА
+// ═══════════════════════════════════════
 async function getWeather(lat, lon, cityName) {
-  main.innerHTML = '<p class="msg">⏳ Загрузка...</p>';
+  appMain.innerHTML = '<p class="msg">⏳ Загрузка...</p>';
 
   try {
-    const url = `/api/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
-    const res = await fetch(url);
+    const res  = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
     const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'ошибка');
 
-    if (!res.ok || data.error) {
-      throw new Error(data.error || 'weather request failed');
-    }
-
-    const cur = data.current;
+    const cur   = data.current;
     const daily = data.daily;
+    const hourly= data.hourly;
 
-    setWeatherEffect(cur.weathercode);
+    setEffect(cur.weathercode);
     document.body.style.background = getBg(cur.weathercode);
 
-    const temp = Math.round(cur.temperature_2m);
-    const feels = Math.round(cur.apparent_temperature);
-    const wind = Math.round(cur.windspeed_10m ?? 0);
-    const humid = cur.relativehumidity_2m ?? '—';
+    const temp   = Math.round(cur.temperature_2m);
+    const feels  = Math.round(cur.apparent_temperature);
+    const wind   = Math.round(cur.windspeed_10m ?? 0);
+    const wdir   = cur.winddirection_10m ?? 0;
+    const gusts  = Math.round(cur.windgusts_10m ?? 0);
+    const humid  = cur.relativehumidity_2m ?? '—';
     const precip = cur.precipitation ?? 0;
-    const uv = cur.uv_index ?? '—';
-    const icon = getIcon(cur.weathercode);
-    const desc = getDesc(cur.weathercode);
+    const uv     = cur.uv_index ?? '—';
+    const vis    = cur.visibility ? (cur.visibility/1000).toFixed(1)+' км' : '—';
+    const press  = cur.pressure_msl ? Math.round(cur.pressure_msl)+' гПа' : '—';
+    const clouds = cur.cloud_cover ?? '—';
 
-    const windDir = cur.winddirection_10m ?? cur.wind_direction_10m ?? 0;
-    const windGusts = cur.windgusts_10m ?? cur.wind_gusts_10m ?? '—';
-    const pressure = cur.pressure_msl ?? cur.surface_pressure ?? '—';
-    const visibility = cur.visibility ?? '—';
+    const sunrise = daily?.sunrise?.[0] ? new Date(daily.sunrise[0]).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}) : '—';
+    const sunset  = daily?.sunset?.[0]  ? new Date(daily.sunset[0]).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})  : '—';
+    const dayMax  = Math.round(daily.temperature_2m_max[0]);
+    const dayMin  = Math.round(daily.temperature_2m_min[0]);
+    const dirs    = ['С','СВ','В','ЮВ','Ю','ЮЗ','З','СЗ'];
+    const wdirStr = dirs[Math.round(wdir/45)%8];
 
-    const sunrise = daily?.sunrise?.[0]
-      ? new Date(daily.sunrise[0]).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
-      : '—';
+    // Почасовой
+    const now = new Date();
+    const hs  = (hourly.time||[]).findIndex(t => new Date(t) >= now);
+    const h24 = (hourly.time||[]).slice(hs, hs+24);
+    const ht  = (hourly.temperature_2m||[]).slice(hs, hs+24);
+    const hc  = (hourly.weathercode||[]).slice(hs, hs+24);
+    const hp  = (hourly.precipitation_probability||[]).slice(hs, hs+24);
 
-    const sunset = daily?.sunset?.[0]
-      ? new Date(daily.sunset[0]).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
-      : '—';
+    const hourlyHTML = h24.map((t,i) => `
+      <div class="hour-card">
+        <div class="hour-time">${i===0?'Сейчас':t.slice(11,16)}</div>
+        <div class="hour-icon">${icon(hc[i]||0)}</div>
+        <div class="hour-temp">${Math.round(ht[i])}°</div>
+        ${hp[i]>10 ? `<div class="hour-pop">💧${hp[i]}%</div>` : ''}
+      </div>`).join('');
 
-    let forecastHTML = '';
+    // 7 дней
+    const allMax = Math.max(...daily.temperature_2m_max);
+    const allMin = Math.min(...daily.temperature_2m_min);
+    const rng    = allMax - allMin || 1;
 
-    for (let i = 0; i < 7; i++) {
-      const dayMax = Math.round(daily.temperature_2m_max[i]);
-      const dayMin = Math.round(daily.temperature_2m_min[i]);
-      const barLeft = Math.max(0, Math.min(100, ((dayMin - Math.min(...daily.temperature_2m_min)) / (Math.max(...daily.temperature_2m_max) - Math.min(...daily.temperature_2m_min) || 1)) * 100));
-      const barWidth = Math.max(5, Math.min(100, ((dayMax - dayMin) / (Math.max(...daily.temperature_2m_max) - Math.min(...daily.temperature_2m_min) || 1)) * 100));
-
-      forecastHTML += `
+    const forecastHTML = daily.time.map((t,i) => {
+      const mx = Math.round(daily.temperature_2m_max[i]);
+      const mn = Math.round(daily.temperature_2m_min[i]);
+      const bl = ((mn-allMin)/rng*100).toFixed(0);
+      const bw = Math.max(8,((mx-mn)/rng*100)).toFixed(0);
+      const d  = new Date(t);
+      return `
         <div class="forecast-row">
-          <div class="forecast-day">${i === 0 ? 'Сег.' : formatDate(daily.time[i])}</div>
-          <div class="forecast-icon">${getIcon(daily.weathercode[i])}</div>
-          <div class="forecast-desc">${getDesc(daily.weathercode[i])}</div>
-          <div class="forecast-min">${dayMin}°</div>
-          <div class="forecast-bar">
-            <div class="forecast-fill" style="margin-left:${barLeft}%; width:${barWidth}%"></div>
-          </div>
-          <div class="forecast-max">${dayMax}°</div>
-        </div>
-      `;
-    }
+          <div class="fc-day">${i===0?'Сег.':DAYS[d.getDay()]}</div>
+          <div class="fc-icon">${icon(daily.weathercode[i])}</div>
+          <div class="fc-desc">${desc(daily.weathercode[i])}</div>
+          <div class="fc-min">${mn}°</div>
+          <div class="fc-bar"><div class="fc-fill" style="margin-left:${bl}%;width:${bw}%"></div></div>
+          <div class="fc-max">${mx}°</div>
+        </div>`;
+    }).join('');
 
-    main.innerHTML = `
-      <div class="weather-card">
-        <div class="weather-left">
-          <div class="city">📍 ${escapeHtml(cityName)}</div>
-          <div class="temp">${temp}°C</div>
-          <div class="desc">${icon} ${desc}</div>
-          <div class="feels">Ощущается как ${feels}°C</div>
+    appMain.innerHTML = `
+
+      <!-- ГЕРОЙ -->
+      <div class="glass hero-card">
+        <div>
+          <div class="hero-city">📍 ${safe(cityName)}</div>
+          <div class="hero-temp">${temp}°C</div>
+          <div class="hero-desc">${icon(cur.weathercode)} ${desc(cur.weathercode)}</div>
+          <div class="hero-feels">Ощущается как ${feels}°C</div>
+          <div class="hero-minmax">↑${dayMax}° ↓${dayMin}°</div>
         </div>
-        <div class="weather-right">${icon}</div>
+        <div class="hero-icon">${icon(cur.weathercode)}</div>
       </div>
 
-      <div class="weather-card">
-        <div class="stats">
-          <div class="stat-card">
-            <div class="stat-icon">💧</div>
-            <div class="stat-val">${humid}%</div>
-            <div class="stat-name">Влажность</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">💨</div>
-            <div class="stat-val">${wind} км/ч</div>
-            <div class="stat-name">Ветер</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🌬️</div>
-            <div class="stat-val">${Math.round(windDir)}°</div>
-            <div class="stat-name">Направление</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">⚡</div>
-            <div class="stat-val">${Math.round(windGusts)} км/ч</div>
-            <div class="stat-name">Порывы</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🧭</div>
-            <div class="stat-val">${pressure}</div>
-            <div class="stat-name">Давление</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🌧️</div>
-            <div class="stat-val">${precip} мм</div>
-            <div class="stat-name">Осадки</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">☀️</div>
-            <div class="stat-val">${uv}</div>
-            <div class="stat-name">UV индекс</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">👁️</div>
-            <div class="stat-val">${visibility}</div>
-            <div class="stat-name">Видимость</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🌅</div>
-            <div class="stat-val">${sunrise}</div>
-            <div class="stat-name">Восход</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🌇</div>
-            <div class="stat-val">${sunset}</div>
-            <div class="stat-name">Закат</div>
-          </div>
+      <!-- МЕТРИКИ -->
+      <div class="glass" style="padding:20px">
+        <div class="section-title">Подробности</div>
+        <div class="metrics-grid">
+          <div class="metric"><div class="metric-icon">💧</div><div class="metric-val">${humid}%</div><div class="metric-name">Влажность</div></div>
+          <div class="metric"><div class="metric-icon">💨</div><div class="metric-val">${wind} км/ч</div><div class="metric-name">Ветер</div></div>
+          <div class="metric"><div class="metric-icon">🧭</div><div class="metric-val">${wdirStr}</div><div class="metric-name">Направление</div></div>
+          <div class="metric"><div class="metric-icon">⚡</div><div class="metric-val">${gusts} км/ч</div><div class="metric-name">Порывы</div></div>
+          <div class="metric"><div class="metric-icon">🌧️</div><div class="metric-val">${precip} мм</div><div class="metric-name">Осадки</div></div>
+          <div class="metric"><div class="metric-icon">🧭</div><div class="metric-val">${press}</div><div class="metric-name">Давление</div></div>
+          <div class="metric"><div class="metric-icon">☀️</div><div class="metric-val">${uv}</div><div class="metric-name">UV индекс</div></div>
+          <div class="metric"><div class="metric-icon">☁️</div><div class="metric-val">${clouds}%</div><div class="metric-name">Облачность</div></div>
+          <div class="metric"><div class="metric-icon">👁️</div><div class="metric-val">${vis}</div><div class="metric-name">Видимость</div></div>
+          <div class="metric"><div class="metric-icon">🌅</div><div class="metric-val">${sunrise}</div><div class="metric-name">Восход</div></div>
+          <div class="metric"><div class="metric-icon">🌇</div><div class="metric-val">${sunset}</div><div class="metric-name">Закат</div></div>
         </div>
       </div>
 
-      <div class="weather-card info-card" id="extraInfo"></div>
-
-      <div class="weather-card map-card">
-        <h3>Карта</h3>
-        <div id="map"></div>
+      <!-- ПОЧАСОВОЙ -->
+      <div class="glass" style="padding:20px">
+        <div class="section-title">Почасовой прогноз</div>
+        <div class="hourly-scroll">${hourlyHTML}</div>
       </div>
 
-      <div class="weather-card chart-card">
-        <h3>Температура на 24 часа</h3>
-        <canvas id="tempChart"></canvas>
-      </div>
-
-      <div class="forecast">
-        <h3>📅 Прогноз на 7 дней</h3>
+      <!-- 7 ДНЕЙ -->
+      <div class="glass" style="padding:20px">
+        <div class="section-title">📅 Прогноз на 7 дней</div>
         ${forecastHTML}
       </div>
+
+      <!-- РАДАР + ГРАФИК -->
+      <div class="two-col">
+        <div class="glass" style="padding:20px">
+          <div class="section-title">🌧️ Радар осадков</div>
+          <div id="map"></div>
+        </div>
+        <div class="glass" style="padding:20px">
+          <div class="section-title">📈 Температура 24 часа</div>
+          <div class="chart-wrap"><canvas id="tempChart"></canvas></div>
+        </div>
+      </div>
+
     `;
 
-    renderExtraInfo(cur);
-    renderMap(lat, lon, cityName);
-    renderChart(data.hourly);
-
+    initRadar(lat, lon);
+    renderChart(hourly);
     await saveToHistory(cityName, lat, lon);
     loadHistory();
-  } catch (err) {
-    console.error(err);
-    main.innerHTML = '<p class="msg">❌ Ошибка загрузки. Проверь интернет.</p>';
+
+  } catch(e) {
+    console.error(e);
+    appMain.innerHTML = '<p class="msg">❌ Ошибка загрузки. Проверь интернет.</p>';
   }
 }
 
-// ─────────────────────────────────────────
-// 6. ПОИСК ГОРОДА
-// ─────────────────────────────────────────
+// ═══════════════════════════════════════
+// ПОИСК / ГЕО
+// ═══════════════════════════════════════
 async function searchCity() {
   const city = cityInput.value.trim();
   if (!city) return;
-
-  main.innerHTML = '<p class="msg">🔍 Ищем город...</p>';
-
+  appMain.innerHTML = '<p class="msg">🔍 Ищем город...</p>';
   try {
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=ru`;
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (!data.results || data.results.length === 0) {
-      main.innerHTML = '<p class="msg">❌ Город не найден. Попробуй другое название.</p>';
-      return;
-    }
-
-    const place = data.results[0];
-    const name = place.name + (place.admin1 ? `, ${place.admin1}` : '');
-
-    await getWeather(place.latitude, place.longitude, name);
-  } catch (err) {
-    console.error(err);
-    main.innerHTML = '<p class="msg">❌ Ошибка поиска города.</p>';
-  }
+    const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=ru`);
+    const d = await r.json();
+    if (!d.results?.length) { appMain.innerHTML='<p class="msg">❌ Город не найден.</p>'; return; }
+    const p = d.results[0];
+    await getWeather(p.latitude, p.longitude, p.name+(p.admin1?', '+p.admin1:''));
+  } catch { appMain.innerHTML='<p class="msg">❌ Ошибка поиска.</p>'; }
 }
 
-// ─────────────────────────────────────────
-// 7. ГЕОЛОКАЦИЯ
-// ─────────────────────────────────────────
 function geoLocate() {
-  if (!navigator.geolocation) {
-    main.innerHTML = '<p class="msg">❌ Геолокация не поддерживается.</p>';
-    return;
-  }
-
-  main.innerHTML = '<p class="msg">📍 Определяем местоположение...</p>';
-
+  if (!navigator.geolocation) return;
+  appMain.innerHTML = '<p class="msg">📍 Определяем местоположение...</p>';
   navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      await getWeather(pos.coords.latitude, pos.coords.longitude, 'Моё местоположение');
-    },
-    () => {
-      main.innerHTML = '<p class="msg">❌ Нет доступа к геолокации.</p>';
-    }
+    async p => await getWeather(p.coords.latitude, p.coords.longitude, 'Моё местоположение'),
+    ()  => { appMain.innerHTML='<p class="msg">❌ Нет доступа к геолокации.</p>'; }
   );
 }
 
-// ─────────────────────────────────────────
-// 8. ИСТОРИЯ
-// ─────────────────────────────────────────
+// ═══════════════════════════════════════
+// ИСТОРИЯ
+// ═══════════════════════════════════════
 async function saveToHistory(city, lat, lon) {
   try {
     await fetch('/api/history', {
@@ -645,54 +420,42 @@ async function saveToHistory(city, lat, lon) {
 
 async function loadHistory() {
   try {
-    const res = await fetch('/api/history');
-    const data = await res.json();
-
-    const old = document.getElementById('history');
+    const r    = await fetch('/api/history');
+    const data = await r.json();
+    const old  = document.getElementById('history');
     if (old) old.remove();
-    if (!data.length) return;
+    if (!data?.length) return;
 
     const div = document.createElement('div');
     div.id = 'history';
-    div.style.cssText = 'padding:0 20px 20px; max-width:900px; margin:0 auto';
     div.innerHTML = `
-      <div style="background:rgba(255,255,255,0.1);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-          <h3 style="font-size:13px;opacity:0.6;letter-spacing:0.5px;text-transform:uppercase">🕐 История поиска</h3>
-          <button onclick="clearHistory()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;border-radius:20px;padding:4px 12px;font-size:12px;cursor:pointer">Очистить</button>
+      <div class="history-inner">
+        <div class="history-header">
+          <span class="section-title" style="margin:0">🕐 История поиска</span>
+          <button class="clear-btn" onclick="clearHistory()">Очистить</button>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          ${data.map(s => `
-            <button onclick="getWeather(${s.lat}, ${s.lon}, ${JSON.stringify(s.city)})"
-              style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer">
-              📍 ${escapeHtml(s.city)}
-            </button>
-          `).join('')}
+        <div class="history-btns">
+          ${data.map(s=>`<button class="history-btn" onclick="getWeather(${s.lat},${s.lon},'${safe(s.city)}')">${safe(s.city)}</button>`).join('')}
         </div>
-      </div>
-    `;
-    document.querySelector('.main').after(div);
+      </div>`;
+    appMain.after(div);
   } catch {}
 }
 
 async function clearHistory() {
   try {
-    await fetch('/api/history', { method: 'DELETE' });
-    loadHistory();
+    await fetch('/api/history', { method:'DELETE' });
+    const old = document.getElementById('history');
+    if (old) old.remove();
   } catch {}
 }
 
-// ─────────────────────────────────────────
-// 9. СОБЫТИЯ
-// ─────────────────────────────────────────
+// ═══════════════════════════════════════
+// СОБЫТИЯ + СТАРТ
+// ═══════════════════════════════════════
 searchBtn.addEventListener('click', searchCity);
 geoBtn.addEventListener('click', geoLocate);
-cityInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') searchCity();
-});
+cityInput.addEventListener('keydown', e => { if(e.key==='Enter') searchCity(); });
 
-// ─────────────────────────────────────────
-// 10. СТАРТ
-// ─────────────────────────────────────────
 loadHistory();
 getWeather(51.18, 71.45, 'Астана');
